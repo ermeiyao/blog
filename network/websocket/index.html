@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/font-awesome.min.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/themes/blue/pace-theme-minimal.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/pace.min.js"></script>
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/blog/',
+    scheme: 'Pisces',
+    version: '7.5.0',
+    exturl: false,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":true},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":true,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: false,
+    lazyload: false,
+    pangu: false,
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: 'search.xml',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    translation: {
+      copy_button: '复制',
+      copy_success: '复制成功',
+      copy_failure: '复制失败'
+    },
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="Socket 和 WebSocket  📦 本文已归档到：「blog」    Socket  Socket 用法 Socket 长连接   WebSocket  WebSocket 简介 WebSocket 使用   FAQ  Http vs. Socket HTTP 和 WebSocket 有什么关系？ Html 和 HTTP 有什么关系？   参考资料    Socket Socket 作">
+<meta property="og:type" content="article">
+<meta property="og:title" content="网络协议之 Websocket">
+<meta property="og:url" content="https://dunwu.github.io/blog/network/websocket/index.html">
+<meta property="og:site_name" content="Dunwu">
+<meta property="og:description" content="Socket 和 WebSocket  📦 本文已归档到：「blog」    Socket  Socket 用法 Socket 长连接   WebSocket  WebSocket 简介 WebSocket 使用   FAQ  Http vs. Socket HTTP 和 WebSocket 有什么关系？ Html 和 HTTP 有什么关系？   参考资料    Socket Socket 作">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://dunwu.test.upcdn.net/cs/java/spring/web/ajax-long-polling.png!zp">
+<meta property="og:image" content="http://dunwu.test.upcdn.net/cs/java/spring/web/websockets-flow.png!zp">
+<meta property="article:published_time" content="2019-05-31T03:51:00.000Z">
+<meta property="article:modified_time" content="2021-04-20T12:29:57.831Z">
+<meta property="article:author" content="Zhang Peng">
+<meta property="article:tag" content="网络">
+<meta property="article:tag" content="通信">
+<meta property="article:tag" content="协议">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://dunwu.test.upcdn.net/cs/java/spring/web/ajax-long-polling.png!zp">
+
+<link rel="canonical" href="https://dunwu.github.io/blog/network/websocket/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>网络协议之 Websocket | Dunwu</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/blog/atom.xml" title="Dunwu" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/blog/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Dunwu</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">大道至简，知易行难</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/blog/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签<span class="badge">38</span></a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类<span class="badge">11</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">44</span></a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="none"
+           placeholder="搜索..." spellcheck="false"
+           type="text" id="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result"></div>
+
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+  <a href="https://github.com/dunwu" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://dunwu.github.io/blog/blog/network/websocket/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="Zhang Peng">
+      <meta itemprop="description" content="Dunwu's Blog">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Dunwu">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          网络协议之 Websocket<a href="https://github.com/dunwu/blog/blob/master/source/_posts/network/websocket.md" class="post-edit-link" title="编辑" rel="noopener" target="_blank"><i class="fa fa-pencil"></i></a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-05-31 11:51:00" itemprop="dateCreated datePublished" datetime="2019-05-31T11:51:00+08:00">2019-05-31</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-04-20 20:29:57" itemprop="dateModified" datetime="2021-04-20T20:29:57+08:00">2021-04-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index">
+                    <span itemprop="name">网络</span>
+                  </a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="fa fa-comment-o"></i>
+      </span>
+      <span class="post-meta-item-text">Disqus：</span>
+    
+    <a title="disqus" href="/blog/network/websocket/#comments" itemprop="discussionUrl">
+      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="network/websocket/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>8.3k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>8 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="socket-和-websocket"><a class="markdownIt-Anchor" href="#socket-和-websocket"></a> Socket 和 WebSocket</h1>
+<blockquote>
+<p>📦 本文已归档到：「<a href="https://github.com/dunwu/blog" target="_blank" rel="noopener">blog</a>」</p>
+</blockquote>
+<!-- TOC depthFrom:2 depthTo:3 -->
+<ul>
+<li><a href="#socket">Socket</a>
+<ul>
+<li><a href="#socket-%E7%94%A8%E6%B3%95">Socket 用法</a></li>
+<li><a href="#socket-%E9%95%BF%E8%BF%9E%E6%8E%A5">Socket 长连接</a></li>
+</ul>
+</li>
+<li><a href="#websocket">WebSocket</a>
+<ul>
+<li><a href="#websocket-%E7%AE%80%E4%BB%8B">WebSocket 简介</a></li>
+<li><a href="#websocket-%E4%BD%BF%E7%94%A8">WebSocket 使用</a></li>
+</ul>
+</li>
+<li><a href="#faq">FAQ</a>
+<ul>
+<li><a href="#http-vs-socket">Http vs. Socket</a></li>
+<li><a href="#http-%E5%92%8C-websocket-%E6%9C%89%E4%BB%80%E4%B9%88%E5%85%B3%E7%B3%BB">HTTP 和 WebSocket 有什么关系？</a></li>
+<li><a href="#html-%E5%92%8C-http-%E6%9C%89%E4%BB%80%E4%B9%88%E5%85%B3%E7%B3%BB">Html 和 HTTP 有什么关系？</a></li>
+</ul>
+</li>
+<li><a href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99">参考资料</a></li>
+</ul>
+<!-- /TOC -->
+<h2 id="socket"><a class="markdownIt-Anchor" href="#socket"></a> Socket</h2>
+<p>Socket 作为一种抽象层，应用程序通过它来发送和接收数据，使用 Socket 可以将应用程序与处于同一网络中的其他应用程序进行通信交互。简而言之，Socket 提供了应用程序内部与外界通信的端口以及为通信双方提供了数据传输的通道。</p>
+<h3 id="socket-用法"><a class="markdownIt-Anchor" href="#socket-用法"></a> Socket 用法</h3>
+<p>很多编程语言都支持 Socket。这里以 Java 的 Socket 用法为例。</p>
+<p>在 Java 的 SDK 中，socket 的共有两个接口：用于监听客户连接的 <code>ServerSocket</code> 和用于通信的 <code>Socket</code>。使用 socket 的步骤如下：</p>
+<ul>
+<li>创建 <code>ServerSocket</code> 并监听客户连接</li>
+<li>使用 <code>Socket</code> 连接服务端</li>
+<li>通过 <code>Socket</code> 获取输入输出流进行通信</li>
+</ul>
+<h3 id="socket-长连接"><a class="markdownIt-Anchor" href="#socket-长连接"></a> Socket 长连接</h3>
+<p>Socket 长连接，指的是在客户和服务端之间保持一个 socket 连接长时间不断开。</p>
+<figure class="highlight reasonml"><table><tr><td class="code"><pre><span class="line">socket.set<span class="constructor">KeepAlive(<span class="params">true</span>)</span>;</span><br></pre></td></tr></table></figure>
+<h2 id="websocket"><a class="markdownIt-Anchor" href="#websocket"></a> WebSocket</h2>
+<h3 id="websocket-简介"><a class="markdownIt-Anchor" href="#websocket-简介"></a> WebSocket 简介</h3>
+<h4 id="websocket-是什么"><a class="markdownIt-Anchor" href="#websocket-是什么"></a> WebSocket 是什么</h4>
+<p><a href="http://websocket.org/" target="_blank" rel="noopener">WebSocket</a> 是一种网络通信协议。<a href="https://tools.ietf.org/html/rfc6455" target="_blank" rel="noopener">RFC6455</a> 定义了它的通信标准。</p>
+<p>WebSocket 是 HTML5 开始提供的一种在单个 TCP 连接上进行全双工通讯的协议。</p>
+<h4 id="为什么需要-websocket"><a class="markdownIt-Anchor" href="#为什么需要-websocket"></a> 为什么需要 WebSocket</h4>
+<p>了解计算机网络协议的人，应该都知道：HTTP 协议是一种无状态的、无连接的、单向的应用层协议。它采用了请求/响应模型。通信请求只能由客户端发起，服务端对请求做出应答处理。</p>
+<p>这种通信模型有一个弊端：HTTP 协议无法实现服务器主动向客户端发起消息。</p>
+<p>这种单向请求的特点，注定了如果服务器有连续的状态变化，客户端要获知就非常麻烦。大多数 Web 应用程序将通过频繁的异步 JavaScript 和 XML（AJAX）请求实现长轮询。轮询的效率低，非常浪费资源（因为必须不停连接，或者 HTTP 连接始终打开）。</p>
+<div align="center"><img src="http://dunwu.test.upcdn.net/cs/java/spring/web/ajax-long-polling.png!zp"/></div>
+因此，工程师们一直在思考，有没有更好的方法。WebSocket 就是这样发明的。WebSocket 连接允许客户端和服务器之间进行全双工通信，以便任一方都可以通过建立的连接将数据推送到另一端。WebSocket 只需要建立一次连接，就可以一直保持连接状态。这相比于轮询方式的不停建立连接显然效率要大大提高。
+<div align="center"><img src="http://dunwu.test.upcdn.net/cs/java/spring/web/websockets-flow.png!zp"/></div>
+#### WebSocket 如何工作
+<p>Web 浏览器和服务器都必须实现 WebSockets 协议来建立和维护连接。由于 WebSockets 连接长期存在，与典型的 HTTP 连接不同，对服务器有重要的影响。</p>
+<p>基于多线程或多进程的服务器无法适用于 WebSockets，因为它旨在打开连接，尽可能快地处理请求，然后关闭连接。任何实际的 WebSockets 服务器端实现都需要一个异步服务器。</p>
+<h3 id="websocket-使用"><a class="markdownIt-Anchor" href="#websocket-使用"></a> WebSocket 使用</h3>
+<h4 id="websocket-客户端"><a class="markdownIt-Anchor" href="#websocket-客户端"></a> WebSocket 客户端</h4>
+<p>在客户端，没有必要为 WebSockets 使用 JavaScript 库。实现 WebSockets 的 Web 浏览器将通过 WebSockets 对象公开所有必需的客户端功能（主要指支持 Html5 的浏览器）。</p>
+<p>以下 API 用于创建 WebSocket 对象。</p>
+<figure class="highlight reasonml"><table><tr><td class="code"><pre><span class="line">var Socket = <span class="keyword">new</span> <span class="constructor">WebSocket(<span class="params">url</span>, [<span class="params">protocol</span>] )</span>;</span><br></pre></td></tr></table></figure>
+<p>以上代码中的第一个参数 url, 指定连接的 URL。第二个参数 protocol 是可选的，指定了可接受的子协议。</p>
+<h5 id="websocket-属性"><a class="markdownIt-Anchor" href="#websocket-属性"></a> WebSocket 属性</h5>
+<p>以下是 WebSocket 对象的属性。假定我们使用了以上代码创建了 Socket 对象：</p>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Socket.readyState</td>
+<td>只读属性 <strong>readyState</strong> 表示连接状态，可以是以下值：0 - 表示连接尚未建立。1 - 表示连接已建立，可以进行通信。2 - 表示连接正在进行关闭。3 - 表示连接已经关闭或者连接不能打开。</td>
+</tr>
+<tr>
+<td>Socket.bufferedAmount</td>
+<td>只读属性 <strong>bufferedAmount</strong> 已被 send() 放入正在队列中等待传输，但是还没有发出的 UTF-8 文本字节数。</td>
+</tr>
+</tbody>
+</table>
+<h5 id="websocket-事件"><a class="markdownIt-Anchor" href="#websocket-事件"></a> WebSocket 事件</h5>
+<p>以下是 WebSocket 对象的相关事件。假定我们使用了以上代码创建了 Socket 对象：</p>
+<table>
+<thead>
+<tr>
+<th>事件</th>
+<th>事件处理程序</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>open</td>
+<td>Socket.onopen</td>
+<td>连接建立时触发</td>
+</tr>
+<tr>
+<td>message</td>
+<td>Socket.onmessage</td>
+<td>客户端接收服务端数据时触发</td>
+</tr>
+<tr>
+<td>error</td>
+<td>Socket.onerror</td>
+<td>通信发生错误时触发</td>
+</tr>
+<tr>
+<td>close</td>
+<td>Socket.onclose</td>
+<td>连接关闭时触发</td>
+</tr>
+</tbody>
+</table>
+<h5 id="websocket-方法"><a class="markdownIt-Anchor" href="#websocket-方法"></a> WebSocket 方法</h5>
+<p>以下是 WebSocket 对象的相关方法。假定我们使用了以上代码创建了 Socket 对象：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Socket.send()</td>
+<td>使用连接发送数据</td>
+</tr>
+<tr>
+<td>Socket.close()</td>
+<td>关闭连接</td>
+</tr>
+</tbody>
+</table>
+<p>WebSocket 客户端代码示例：</p>
+<figure class="highlight js"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 初始化一个 WebSocket 对象</span></span><br><span class="line"><span class="keyword">var</span> ws = <span class="keyword">new</span> WebSocket(<span class="string">'ws://localhost:9998/echo'</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 建立 web socket 连接成功触发事件</span></span><br><span class="line">ws.onopen = <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  <span class="comment">// 使用 send() 方法发送数据</span></span><br><span class="line">  ws.send(<span class="string">'发送数据'</span>)</span><br><span class="line">  alert(<span class="string">'数据发送中...'</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 接收服务端数据时触发事件</span></span><br><span class="line">ws.onmessage = <span class="function"><span class="keyword">function</span>(<span class="params">evt</span>) </span>&#123;</span><br><span class="line">  <span class="keyword">var</span> received_msg = evt.data</span><br><span class="line">  alert(<span class="string">'数据已接收...'</span>)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 断开 web socket 连接成功触发事件</span></span><br><span class="line">ws.onclose = <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">  alert(<span class="string">'连接已关闭...'</span>)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="websocket-服务端"><a class="markdownIt-Anchor" href="#websocket-服务端"></a> WebSocket 服务端</h4>
+<p>WebSocket 在服务端的实现非常丰富。Node.js、Java、C++、Python 等多种语言都有自己的解决方案。</p>
+<p>以下，介绍我在学习 WebSocket 过程中接触过的 WebSocket 服务端解决方案。</p>
+<h5 id="nodejs"><a class="markdownIt-Anchor" href="#nodejs"></a> Node.js</h5>
+<p>常用的 Node 实现有以下三种。</p>
+<ul>
+<li><a href="https://github.com/uWebSockets/uWebSockets" target="_blank" rel="noopener">µWebSockets</a></li>
+<li><a href="http://socket.io/" target="_blank" rel="noopener">Socket.IO</a></li>
+<li><a href="https://github.com/theturtle32/WebSocket-Node" target="_blank" rel="noopener">WebSocket-Node</a></li>
+</ul>
+<h5 id="java"><a class="markdownIt-Anchor" href="#java"></a> Java</h5>
+<p>Java 的 web 一般都依托于 servlet 容器。</p>
+<p>我使用过的 servlet 容器有：Tomcat、Jetty、Resin。其中 Tomcat7、Jetty7 及以上版本均开始支持 WebSocket（推荐较新的版本，因为随着版本的更迭，对 WebSocket 的支持可能有变更）。</p>
+<p>此外，Spring 框架对 WebSocket 也提供了支持。</p>
+<p>虽然，以上应用对于 WebSocket 都有各自的实现。但是，它们都遵循<a href="https://tools.ietf.org/html/rfc6455" target="_blank" rel="noopener">RFC6455</a> 的通信标准，并且 Java API 统一遵循 <a href="http://www.jcp.org/en/jsr/detail?id=356" target="_blank" rel="noopener">JSR 356 - JavaTM API for WebSocket </a> 规范。所以，在实际编码中，API 差异不大。</p>
+<h5 id="spring"><a class="markdownIt-Anchor" href="#spring"></a> Spring</h5>
+<p>Spring 对于 WebSocket 的支持基于下面的 jar 包：</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-websocket<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;spring.version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>在 Spring 实现 WebSocket 服务器大概分为以下几步：</p>
+<p><strong>创建 WebSocket 处理器</strong></p>
+<p>扩展 <code>TextWebSocketHandler</code> 或 <code>BinaryWebSocketHandler</code> ，你可以覆写指定的方法。Spring 在收到 WebSocket 事件时，会自动调用事件对应的方法。</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> org.springframework.web.socket.WebSocketHandler;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.socket.WebSocketSession;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.socket.TextMessage;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyHandler</span> <span class="keyword">extends</span> <span class="title">TextWebSocketHandler</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">handleTextMessage</span><span class="params">(WebSocketSession session, TextMessage message)</span> </span>&#123;</span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>WebSocketHandler</code> 源码如下，这意味着你的处理器大概可以处理哪些 WebSocket 事件：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">WebSocketHandler</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * 建立连接后触发的回调</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">void</span> <span class="title">afterConnectionEstablished</span><span class="params">(WebSocketSession session)</span> <span class="keyword">throws</span> Exception</span>;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * 收到消息时触发的回调</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">void</span> <span class="title">handleMessage</span><span class="params">(WebSocketSession session, WebSocketMessage&lt;?&gt; message)</span> <span class="keyword">throws</span> Exception</span>;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * 传输消息出错时触发的回调</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">void</span> <span class="title">handleTransportError</span><span class="params">(WebSocketSession session, Throwable exception)</span> <span class="keyword">throws</span> Exception</span>;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * 断开连接后触发的回调</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">void</span> <span class="title">afterConnectionClosed</span><span class="params">(WebSocketSession session, CloseStatus closeStatus)</span> <span class="keyword">throws</span> Exception</span>;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * 是否处理分片消息</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">boolean</span> <span class="title">supportsPartialMessages</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>配置 WebSocket</strong></p>
+<p>配置有两种方式：注解和 xml 。其作用就是将 WebSocket 处理器添加到注册中心。</p>
+<ol>
+<li>实现 <code>WebSocketConfigurer</code></li>
+</ol>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> org.springframework.web.socket.config.annotation.EnableWebSocket;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.socket.config.annotation.WebSocketConfigurer;</span><br><span class="line"><span class="keyword">import</span> org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Configuration</span></span><br><span class="line"><span class="meta">@EnableWebSocket</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">WebSocketConfig</span> <span class="keyword">implements</span> <span class="title">WebSocketConfigurer</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">registerWebSocketHandlers</span><span class="params">(WebSocketHandlerRegistry registry)</span> </span>&#123;</span><br><span class="line">        registry.addHandler(myHandler(), <span class="string">"/myHandler"</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Bean</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> WebSocketHandler <span class="title">myHandler</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> MyHandler();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ol start="2">
+<li>xml 方式</li>
+</ol>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">beans</span> <span class="attr">xmlns</span>=<span class="string">"http://www.springframework.org/schema/beans"</span></span></span><br><span class="line"><span class="tag">    <span class="attr">xmlns:xsi</span>=<span class="string">"http://www.w3.org/2001/XMLSchema-instance"</span></span></span><br><span class="line"><span class="tag">    <span class="attr">xmlns:websocket</span>=<span class="string">"http://www.springframework.org/schema/websocket"</span></span></span><br><span class="line"><span class="tag">    <span class="attr">xsi:schemaLocation</span>=<span class="string">"</span></span></span><br><span class="line"><span class="tag"><span class="string">        http://www.springframework.org/schema/beans</span></span></span><br><span class="line"><span class="tag"><span class="string">        http://www.springframework.org/schema/beans/spring-beans.xsd</span></span></span><br><span class="line"><span class="tag"><span class="string">        http://www.springframework.org/schema/websocket</span></span></span><br><span class="line"><span class="tag"><span class="string">        http://www.springframework.org/schema/websocket/spring-websocket.xsd"</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">websocket:handlers</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">websocket:mapping</span> <span class="attr">path</span>=<span class="string">"/myHandler"</span> <span class="attr">handler</span>=<span class="string">"myHandler"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">websocket:handlers</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">bean</span> <span class="attr">id</span>=<span class="string">"myHandler"</span> <span class="attr">class</span>=<span class="string">"org.springframework.samples.MyHandler"</span>/&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;/<span class="name">beans</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>更多配置细节可以参考：<a href="https://docs.spring.io/spring/docs/4.3.12.RELEASE/spring-framework-reference/htmlsingle/#websocket" target="_blank" rel="noopener">Spring WebSocket 文档</a></p>
+</blockquote>
+<p>javax.websocket</p>
+<p>如果不想使用 Spring 框架的 WebSocket API，你也可以选择基本的 javax.websocket。</p>
+<p>首先，需要引入 API jar 包。</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="comment">&lt;!-- To write basic javax.websocket against --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>javax.websocket<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>javax.websocket-api<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>如果使用嵌入式 jetty，你还需要引入它的实现包：</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="comment">&lt;!-- To run javax.websocket in embedded server --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.eclipse.jetty.websocket<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>javax-websocket-server-impl<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;jetty-version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"><span class="comment">&lt;!-- To run javax.websocket client --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.eclipse.jetty.websocket<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>javax-websocket-client-impl<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">version</span>&gt;</span>$&#123;jetty-version&#125;<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p><strong>@ServerEndpoint</strong></p>
+<p>这个注解用来标记一个类是 WebSocket 的处理器。</p>
+<p>然后，你可以在这个类中使用下面的注解来表明所修饰的方法是触发事件的回调</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 收到消息触发事件</span></span><br><span class="line"><span class="meta">@OnMessage</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onMessage</span><span class="params">(String message, Session session)</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 打开连接触发事件</span></span><br><span class="line"><span class="meta">@OnOpen</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onOpen</span><span class="params">(Session session, EndpointConfig config, @PathParam(<span class="string">"id"</span>)</span> String id) </span>&#123;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 关闭连接触发事件</span></span><br><span class="line"><span class="meta">@OnClose</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onClose</span><span class="params">(Session session, CloseReason closeReason)</span> </span>&#123;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 传输消息错误触发事件</span></span><br><span class="line"><span class="meta">@OnError</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onError</span><span class="params">(Throwable error)</span> </span>&#123;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>ServerEndpointConfig.Configurator</strong></p>
+<p>编写完处理器，你需要扩展 ServerEndpointConfig.Configurator 类完成配置：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">WebSocketServerConfigurator</span> <span class="keyword">extends</span> <span class="title">ServerEndpointConfig</span>.<span class="title">Configurator</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">modifyHandshake</span><span class="params">(ServerEndpointConfig sec, HandshakeRequest request, HandshakeResponse response)</span> </span>&#123;</span><br><span class="line">        HttpSession httpSession = (HttpSession) request.getHttpSession();</span><br><span class="line">        sec.getUserProperties().put(HttpSession<span class="class">.<span class="keyword">class</span>.<span class="title">getName</span>(), <span class="title">httpSession</span>)</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后就没有然后了，就是这么简单。</p>
+<h4 id="websocket-代理"><a class="markdownIt-Anchor" href="#websocket-代理"></a> WebSocket 代理</h4>
+<p>如果把 WebSocket 的通信看成是电话连接，Nginx 的角色则像是电话接线员，负责将发起电话连接的电话转接到指定的客服。</p>
+<p>Nginx 从 <a href="http://nginx.com/blog/websocket-nginx/" target="_blank" rel="noopener">1.3 版</a>开始正式支持 WebSocket 代理。如果你的 web 应用使用了代理服务器 Nginx，那么你还需要为 Nginx 做一些配置，使得它开启 WebSocket 代理功能。</p>
+<p>以下为参考配置：</p>
+<figure class="highlight nginx"><table><tr><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">  <span class="comment"># this section is specific to the WebSockets proxying</span></span><br><span class="line">  <span class="attribute">location</span> /socket.io &#123;</span><br><span class="line">    <span class="attribute">proxy_pass</span> http://app_server_wsgiapp/socket.io;</span><br><span class="line">    <span class="attribute">proxy_redirect</span> <span class="literal">off</span>;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">proxy_set_header</span> Host <span class="variable">$host</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Real-IP <span class="variable">$remote_addr</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Forwarded-For <span class="variable">$proxy_add_x_forwarded_for</span>;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">proxy_http_version</span> <span class="number">1</span>.<span class="number">1</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> Upgrade <span class="variable">$http_upgrade</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> Connection <span class="string">"upgrade"</span>;</span><br><span class="line">    <span class="attribute">proxy_read_timeout</span> <span class="number">600</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>更多配置细节可以参考：<a href="http://nginx.org/en/docs/http/websocket.html" target="_blank" rel="noopener">Nginx 官方的 websocket 文档</a></p>
+</blockquote>
+<h4 id="websocket-应用示例"><a class="markdownIt-Anchor" href="#websocket-应用示例"></a> WebSocket 应用示例</h4>
+<p>如果需要完整示例代码，可以参考我的 Github 代码：</p>
+<ul>
+<li><a href="https://github.com/dunwu/spring-notes/tree/master/codes/web/websocket" target="_blank" rel="noopener">Spring 对 WebSocket 支持的示例</a></li>
+<li><a href="https://github.com/dunwu/javaee-notes/tree/master/codes/websocket" target="_blank" rel="noopener">嵌入式 Jetty 服务器的 WebSocket 示例</a></li>
+</ul>
+<p>spring-websocket 和 jetty 9.3 版本似乎存在兼容性问题，Tomcat 则木有问题。</p>
+<p>我尝试了好几次，没有找到解决方案，只好使用 Jetty 官方的嵌入式示例在 Jetty 中使用 WebSocket 。</p>
+<h2 id="faq"><a class="markdownIt-Anchor" href="#faq"></a> FAQ</h2>
+<h3 id="http-vs-socket"><a class="markdownIt-Anchor" href="#http-vs-socket"></a> Http vs. Socket</h3>
+<p>Http 通信与 Socket 通信方式有何差异？</p>
+<ul>
+<li>Http
+<ul>
+<li>基于请求/响应模式，采取一问一答方式（客户端请求，服务端才会响应）</li>
+</ul>
+</li>
+<li>Socket
+<ul>
+<li>客户端和服务端建立双向连接。连接成功后，任意一方都可主动发送消息。</li>
+<li>数据丢失率低，使用简单，易于移植。</li>
+</ul>
+</li>
+</ul>
+<h3 id="http-和-websocket-有什么关系"><a class="markdownIt-Anchor" href="#http-和-websocket-有什么关系"></a> HTTP 和 WebSocket 有什么关系？</h3>
+<p>Websocket 其实是一个新协议，跟 HTTP 协议基本没有关系，只是为了兼容现有浏览器的握手规范而已，也就是说它是 HTTP 协议上的一种补充。</p>
+<h3 id="html-和-http-有什么关系"><a class="markdownIt-Anchor" href="#html-和-http-有什么关系"></a> Html 和 HTTP 有什么关系？</h3>
+<p>Html 是超文本标记语言，是一种用于创建网页的标准标记语言。它是一种技术标准。Html5 是它的最新版本。</p>
+<p>Http 是一种网络通信协议。其本身和 Html 没有直接关系。</p>
+<h2 id="参考资料"><a class="markdownIt-Anchor" href="#参考资料"></a> 参考资料</h2>
+<ul>
+<li><a href="https://www.zhihu.com/question/20215561" target="_blank" rel="noopener">知乎高票答案——WebSocket 是什么原理</a> - 对 WebSocket 原理的阐述简单易懂。</li>
+<li><a href="http://www.ruanyifeng.com/blog/2017/05/websocket.html" target="_blank" rel="noopener">WebSocket 教程</a> - 阮一峰大神的科普一如既往的浅显易懂。</li>
+<li><a href="https://www.fullstackpython.com/websockets.html" target="_blank" rel="noopener">WebSockets</a> - by <em>fullstackpython</em></li>
+<li><a href="http://nginx.org/en/docs/http/websocket.html" target="_blank" rel="noopener">Nginx 官方的 websocket 文档</a></li>
+<li><a href="https://docs.spring.io/spring/docs/4.3.12.RELEASE/spring-framework-reference/htmlsingle/#websocket" target="_blank" rel="noopener">Spring WebSocket 文档</a></li>
+<li><a href="http://tomcat.apache.org/tomcat-7.0-doc/web-socket-howto.html" target="_blank" rel="noopener">Tomcat7 WebSocket 文档</a></li>
+<li><a href="https://www.eclipse.org/jetty/documentation/9.4.7.v20170914/websocket-intro.html" target="_blank" rel="noopener">Jetty WebSocket 文档</a></li>
+<li><a href="https://juejin.im/post/57f885370bd1d00058b37d74" target="_blank" rel="noopener">Socket，你需要知道的事儿</a></li>
+<li><a href="https://juejin.im/post/5b3649d751882552f052703b" target="_blank" rel="noopener">手把手教你写 Socket 长连接</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>Zhang Peng
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://dunwu.github.io/blog/network/websocket/" title="网络协议之 Websocket">https://dunwu.github.io/blog/network/websocket/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/%E7%BD%91%E7%BB%9C/" rel="tag"># 网络</a>
+              <a href="/blog/tags/%E9%80%9A%E4%BF%A1/" rel="tag"># 通信</a>
+              <a href="/blog/tags/%E5%8D%8F%E8%AE%AE/" rel="tag"># 协议</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/blog/network/cdn/" rel="next" title="网络通信之 CDN">
+                  <i class="fa fa-chevron-left"></i> 网络通信之 CDN
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/blog/network/udp/" rel="prev" title="网络协议之 UDP">
+                  网络协议之 UDP <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    
+  <div class="comments" id="comments">
+    <div id="disqus_thread">
+      <noscript>Please enable JavaScript to view the comments powered by Disqus.</noscript>
+    </div>
+  </div>
+  
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#socket-和-websocket"><span class="nav-text"> Socket 和 WebSocket</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#socket"><span class="nav-text"> Socket</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#socket-用法"><span class="nav-text"> Socket 用法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#socket-长连接"><span class="nav-text"> Socket 长连接</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#websocket"><span class="nav-text"> WebSocket</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#websocket-简介"><span class="nav-text"> WebSocket 简介</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#websocket-是什么"><span class="nav-text"> WebSocket 是什么</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#为什么需要-websocket"><span class="nav-text"> 为什么需要 WebSocket</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#websocket-使用"><span class="nav-text"> WebSocket 使用</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#websocket-客户端"><span class="nav-text"> WebSocket 客户端</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#websocket-服务端"><span class="nav-text"> WebSocket 服务端</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#websocket-代理"><span class="nav-text"> WebSocket 代理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#websocket-应用示例"><span class="nav-text"> WebSocket 应用示例</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#faq"><span class="nav-text"> FAQ</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#http-vs-socket"><span class="nav-text"> Http vs. Socket</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#http-和-websocket-有什么关系"><span class="nav-text"> HTTP 和 WebSocket 有什么关系？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#html-和-http-有什么关系"><span class="nav-text"> Html 和 HTTP 有什么关系？</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#参考资料"><span class="nav-text"> 参考资料</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <img class="site-author-image" itemprop="image" alt="Zhang Peng"
+    src="/blog/images/avatar.gif">
+  <p class="site-author-name" itemprop="name">Zhang Peng</p>
+  <div class="site-description" itemprop="description">Dunwu's Blog</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">44</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">38</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/dunwu" title="GitHub &amp;rarr; https:&#x2F;&#x2F;github.com&#x2F;dunwu" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:forbreak@163.com" title="E-Mail &amp;rarr; mailto:forbreak@163.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="/blog/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-paper-plane"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhang Peng</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    <span title="站点总字数">278k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:12</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script color='0,0,255' opacity='0.5' zIndex='-1' count='99' src="//cdn.jsdelivr.net/gh/theme-next/theme-next-canvas-nest@1/canvas-nest.min.js"></script>
+  <script src="/blog/lib/anime.min.js"></script>
+  <script src="/blog/lib/velocity/velocity.min.js"></script>
+  <script src="/blog/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/pisces.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+<script src="/blog/js/bookmark.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/blog/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<script>
+  function loadCount() {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://blog-ajay4qmfci.disqus.com/count.js';
+    s.id = 'dsq-count-scr';
+    (d.head || d.body).appendChild(s);
+  }
+  // defer loading until the whole page loading is completed
+  window.addEventListener('load', loadCount, false);
+</script>
+<script>
+  function loadComments() {
+    if (window.DISQUS) {
+      DISQUS.reset({
+        reload: true,
+        config: {page: {
+            url: "https://dunwu.github.io/blog/network/websocket/",
+            identifier: "network/websocket/",
+            title: "网络协议之 Websocket"
+          }
+        }
+      });
+    } else {
+      var d = document, s = d.createElement('script');
+      s.src = 'https://blog-ajay4qmfci.disqus.com/embed.js';
+      s.setAttribute('data-timestamp', '' + +new Date());
+      (d.head || d.body).appendChild(s);
+    }
+  }
+    (function() {
+      var offsetTop = document.getElementById('comments').offsetTop - window.innerHeight;
+      if (offsetTop <= 0) {
+        // load directly when there's no a scrollbar
+        window.addEventListener('load', loadComments, false);
+      } else {
+        var disqus_scroll = () => {
+          // offsetTop may changes because of manually resizing browser window or lazy loading images.
+          var offsetTop = document.getElementById('comments').offsetTop - window.innerHeight;
+          var scrollTop = window.scrollY;
+
+          // pre-load comments a bit? (margin or anything else)
+          if (offsetTop - scrollTop < 60) {
+            window.removeEventListener('scroll', disqus_scroll);
+            loadComments();
+          }
+        };
+        window.addEventListener('scroll', disqus_scroll);
+      }
+    })();
+  
+</script>
+
+</body>
+</html>

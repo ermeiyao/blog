@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/blog/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/blog/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/blog/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/blog/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/blog/css/main.css">
+
+
+<link rel="stylesheet" href="/blog/lib/font-awesome/css/font-awesome.min.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/themes/blue/pace-theme-minimal.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/pace/1.0.2/pace.min.js"></script>
+
+
+<script id="hexo-configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/blog/',
+    scheme: 'Pisces',
+    version: '7.5.0',
+    exturl: false,
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":true},
+    copycode: {"enable":false,"show_result":false,"style":null},
+    back2top: {"enable":true,"sidebar":false,"scrollpercent":false},
+    bookmark: {"enable":true,"color":"#222","save":"auto"},
+    fancybox: false,
+    mediumzoom: false,
+    lazyload: false,
+    pangu: false,
+    algolia: {
+      appID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    },
+    localsearch: {"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},
+    path: 'search.xml',
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    translation: {
+      copy_button: '复制',
+      copy_success: '复制成功',
+      copy_failure: '复制失败'
+    },
+    sidebarPadding: 40
+  };
+</script>
+
+  <meta name="description" content="分布式会话基本原理  📦 本文已归档到：「blog」 由于 Http 是一种无状态的协议，服务器单单从网络连接上无从知道客户身份。 会话跟踪是 Web 程序中常用的技术，用来跟踪用户的整个会话。常用会话跟踪技术是 Cookie 与 Session。    1. 简介  1.1. 什么是 Cookie 1.2. 什么是 Session 1.3. Cookie 和 Session 的区别 1.4.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="分布式会话基本原理">
+<meta property="og:url" content="https://dunwu.github.io/blog/theory/distributed-session/index.html">
+<meta property="og:site_name" content="Dunwu">
+<meta property="og:description" content="分布式会话基本原理  📦 本文已归档到：「blog」 由于 Http 是一种无状态的协议，服务器单单从网络连接上无从知道客户身份。 会话跟踪是 Web 程序中常用的技术，用来跟踪用户的整个会话。常用会话跟踪技术是 Cookie 与 Session。    1. 简介  1.1. 什么是 Cookie 1.2. 什么是 Session 1.3. Cookie 和 Session 的区别 1.4.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://user-gold-cdn.xitu.io/2019/5/13/16aafb5d90f398e2?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
+<meta property="og:image" content="http://dunwu.test.upcdn.net/cs/design/architecture/MultiNode-StickySessions.jpg!zp">
+<meta property="og:image" content="http://dunwu.test.upcdn.net/cs/design/architecture/MultiNode-SessionReplication.jpg!zp">
+<meta property="og:image" content="http://dunwu.test.upcdn.net/cs/design/architecture/MultiNode-SpringSession.jpg!zp">
+<meta property="article:published_time" content="2019-06-04T15:42:00.000Z">
+<meta property="article:modified_time" content="2021-04-20T12:29:57.831Z">
+<meta property="article:author" content="Zhang Peng">
+<meta property="article:tag" content="分布式">
+<meta property="article:tag" content="session">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://user-gold-cdn.xitu.io/2019/5/13/16aafb5d90f398e2?imageView2/0/w/1280/h/960/format/webp/ignore-error/1">
+
+<link rel="canonical" href="https://dunwu.github.io/blog/theory/distributed-session/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome: false,
+    isPost: true,
+    isPage: false,
+    isArchive: false
+  };
+</script>
+
+  <title>分布式会话基本原理 | Dunwu</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/blog/atom.xml" title="Dunwu" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-meta">
+
+    <div>
+      <a href="/blog/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Dunwu</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+        <h1 class="site-subtitle" itemprop="description">大道至简，知易行难</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+</div>
+
+
+<nav class="site-nav">
+  
+  <ul id="menu" class="menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/blog/" rel="section"><i class="fa fa-fw fa-home"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/blog/about/" rel="section"><i class="fa fa-fw fa-user"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/blog/tags/" rel="section"><i class="fa fa-fw fa-tags"></i>标签<span class="badge">38</span></a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/blog/categories/" rel="section"><i class="fa fa-fw fa-th"></i>分类<span class="badge">11</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/blog/archives/" rel="section"><i class="fa fa-fw fa-archive"></i>归档<span class="badge">44</span></a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+
+</nav>
+  <div class="site-search">
+    <div class="popup search-popup">
+    <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocorrect="off" autocapitalize="none"
+           placeholder="搜索..." spellcheck="false"
+           type="text" id="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result"></div>
+
+</div>
+<div class="search-pop-overlay"></div>
+
+  </div>
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+  <a href="https://github.com/dunwu" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content">
+            
+
+  <div class="posts-expand">
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block " lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://dunwu.github.io/blog/blog/theory/distributed-session/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/blog/images/avatar.gif">
+      <meta itemprop="name" content="Zhang Peng">
+      <meta itemprop="description" content="Dunwu's Blog">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Dunwu">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          分布式会话基本原理<a href="https://github.com/dunwu/blog/blob/master/source/_posts/theory/distributed-session.md" class="post-edit-link" title="编辑" rel="noopener" target="_blank"><i class="fa fa-pencil"></i></a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-06-04 23:42:00" itemprop="dateCreated datePublished" datetime="2019-06-04T23:42:00+08:00">2019-06-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-04-20 20:29:57" itemprop="dateModified" datetime="2021-04-20T20:29:57+08:00">2021-04-20</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/blog/categories/%E5%88%86%E5%B8%83%E5%BC%8F/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式</span>
+                  </a>
+                </span>
+            </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="fa fa-comment-o"></i>
+      </span>
+      <span class="post-meta-item-text">Disqus：</span>
+    
+    <a title="disqus" href="/blog/theory/distributed-session/#comments" itemprop="discussionUrl">
+      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="theory/distributed-session/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-file-word-o"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>6.2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-clock-o"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="分布式会话基本原理"><a class="markdownIt-Anchor" href="#分布式会话基本原理"></a> 分布式会话基本原理</h1>
+<blockquote>
+<p>📦 本文已归档到：「<a href="https://github.com/dunwu/blog" target="_blank" rel="noopener">blog</a>」</p>
+<p>由于 Http 是一种无状态的协议，服务器单单从网络连接上无从知道客户身份。</p>
+<p>会话跟踪是 Web 程序中常用的技术，用来跟踪用户的整个会话。常用会话跟踪技术是 Cookie 与 Session。</p>
+</blockquote>
+<!-- TOC depthFrom:2 depthTo:3 -->
+<ul>
+<li><a href="#1-%E7%AE%80%E4%BB%8B">1. 简介</a>
+<ul>
+<li><a href="#11-%E4%BB%80%E4%B9%88%E6%98%AF-cookie">1.1. 什么是 Cookie</a></li>
+<li><a href="#12-%E4%BB%80%E4%B9%88%E6%98%AF-session">1.2. 什么是 Session</a></li>
+<li><a href="#13-cookie-%E5%92%8C-session-%E7%9A%84%E5%8C%BA%E5%88%AB">1.3. Cookie 和 Session 的区别</a></li>
+<li><a href="#14-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-cookie-%E5%92%8C-session%E4%BB%96%E4%BB%AC%E6%9C%89%E4%BB%80%E4%B9%88%E5%85%B3%E8%81%94">1.4. 为什么需要 Cookie 和 Session，他们有什么关联？</a></li>
+<li><a href="#15-%E5%A6%82%E6%9E%9C%E6%B5%8F%E8%A7%88%E5%99%A8%E7%A6%81%E7%94%A8-cookie-%E6%80%8E%E4%B9%88%E5%8A%9E">1.5. 如果浏览器禁用 Cookie 怎么办</a></li>
+</ul>
+</li>
+<li><a href="#2-%E5%88%86%E5%B8%83%E5%BC%8F-session">2. 分布式 Session</a>
+<ul>
+<li><a href="#21-%E7%B2%98%E6%80%A7-session">2.1. 粘性 Session</a></li>
+<li><a href="#22-session-%E5%A4%8D%E5%88%B6%E5%85%B1%E4%BA%AB">2.2. Session 复制共享</a></li>
+<li><a href="#23-%E5%9F%BA%E4%BA%8E%E7%BC%93%E5%AD%98%E7%9A%84-session-%E5%85%B1%E4%BA%AB">2.3. 基于缓存的 session 共享</a></li>
+</ul>
+</li>
+<li><a href="#3-%E5%85%B7%E4%BD%93%E5%AE%9E%E7%8E%B0">3. 具体实现</a>
+<ul>
+<li><a href="#31-jwt-token">3.1. JWT Token</a></li>
+<li><a href="#32-tomcat--redis">3.2. tomcat + redis</a></li>
+<li><a href="#33-spring-session--redis">3.3. spring session + redis</a></li>
+</ul>
+</li>
+<li><a href="#4-%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99">4. 参考资料</a></li>
+</ul>
+<!-- /TOC -->
+<h2 id="1-简介"><a class="markdownIt-Anchor" href="#1-简介"></a> 1. 简介</h2>
+<h3 id="11-什么是-cookie"><a class="markdownIt-Anchor" href="#11-什么是-cookie"></a> 1.1. 什么是 Cookie</h3>
+<p>Cookie 实际上是存储在用户浏览器上的文本信息，并保留了各种跟踪的信息。</p>
+<p>Cookie 工作步骤：</p>
+<ol>
+<li>客户端请求服务器，如果服务器需要记录该用户的状态，就是用 response 向客户端浏览器颁发一个 Cookie。</li>
+<li>客户端浏览器会把 Cookie 保存下来。</li>
+<li>当浏览器再请求该网站时，浏览器把该请求的网址连同 Cookie 一同提交给服务器。服务器检查该 Cookie，以此来辨认用户状态。</li>
+</ol>
+<p>Cookie 主要用于以下三个方面：</p>
+<ul>
+<li>会话状态管理（如用户登录状态、购物车、游戏分数或其它需要记录的信息）</li>
+<li>个性化设置（如用户自定义设置、主题等）</li>
+<li>浏览器行为跟踪（如跟踪分析用户行为等）</li>
+</ul>
+<p><em><strong>注：Cookie 功能需要浏览器的支持，如果浏览器不支持 Cookie 或者 Cookie 禁用了，Cookie 功能就会失效。</strong></em></p>
+<h3 id="12-什么是-session"><a class="markdownIt-Anchor" href="#12-什么是-session"></a> 1.2. 什么是 Session</h3>
+<p>Session 代表着服务器和客户端一次会话的过程。Session 对象存储特定用户会话所需的属性及配置信息。这样，当用户在应用程序的 Web 页之间跳转时，存储在 Session 对象中的变量将不会丢失，而是在整个用户会话中一直存在下去。当客户端关闭会话，或者 Session 超时失效时会话结束。</p>
+<h3 id="13-cookie-和-session-的区别"><a class="markdownIt-Anchor" href="#13-cookie-和-session-的区别"></a> 1.3. Cookie 和 Session 的区别</h3>
+<ul>
+<li><strong>作用范围不同</strong>，Cookie 保存在客户端（浏览器），Session 保存在服务器端。</li>
+<li><strong>存取方式的不同</strong>，Cookie 只能保存 ASCII，Session 可以存任意数据类型，一般情况下我们可以在 Session 中保持一些常用变量信息，比如说 UserId 等。</li>
+<li><strong>有效期不同</strong>，Cookie 可设置为长时间保持，比如我们经常使用的默认登录功能，Session 一般失效时间较短，客户端关闭或者 Session 超时都会失效。</li>
+<li><strong>隐私策略不同</strong>，Cookie 存储在客户端，比较容易遭到不法获取，早期有人将用户的登录名和密码存储在 Cookie 中导致信息被窃取；Session 存储在服务端，安全性相对 Cookie 要好一些。</li>
+<li><strong>存储大小不同</strong>， 单个 Cookie 保存的数据不能超过 4K，Session 可存储数据远高于 Cookie。</li>
+</ul>
+<h3 id="14-为什么需要-cookie-和-session他们有什么关联"><a class="markdownIt-Anchor" href="#14-为什么需要-cookie-和-session他们有什么关联"></a> 1.4. 为什么需要 Cookie 和 Session，他们有什么关联？</h3>
+<p>说起来为什么需要 Cookie ，这就需要从浏览器开始说起，我们都知道浏览器是没有状态的(HTTP 协议无状态)，这意味着浏览器并不知道是张三还是李四在和服务端打交道。这个时候就需要有一个机制来告诉服务端，本次操作用户是否登录，是哪个用户在执行的操作，那这套机制的实现就需要 Cookie 和 Session 的配合。</p>
+<p>那么 Cookie 和 Session 是如何配合的呢？我画了一张图大家可以先了解下。</p>
+<p><img src="https://user-gold-cdn.xitu.io/2019/5/13/16aafb5d90f398e2?imageView2/0/w/1280/h/960/format/webp/ignore-error/1" alt="img" /></p>
+<p>用户第一次请求服务器的时候，服务器根据用户提交的相关信息，创建创建对应的 Session ，请求返回时将此 Session 的唯一标识信息 SessionID 返回给浏览器，浏览器接收到服务器返回的 SessionID 信息后，会将此信息存入到 Cookie 中，同时 Cookie 记录此 SessionID 属于哪个域名。</p>
+<p>当用户第二次访问服务器的时候，请求会自动判断此域名下是否存在 Cookie 信息，如果存在自动将 Cookie 信息也发送给服务端，服务端会从 Cookie 中获取 SessionID，再根据 SessionID 查找对应的 Session 信息，如果没有找到说明用户没有登录或者登录失效，如果找到 Session 证明用户已经登录可执行后面操作。</p>
+<p>根据以上流程可知，SessionID 是连接 Cookie 和 Session 的一道桥梁，大部分系统也是根据此原理来验证用户登录状态。</p>
+<h3 id="15-如果浏览器禁用-cookie-怎么办"><a class="markdownIt-Anchor" href="#15-如果浏览器禁用-cookie-怎么办"></a> 1.5. 如果浏览器禁用 Cookie 怎么办</h3>
+<p>既然服务端是根据 Cookie 中的信息判断用户是否登录，那么如果浏览器中禁止了 Cookie，如何保障整个机制的正常运转。</p>
+<p>第一种方案，每次请求中都携带一个 SessionID 的参数，也可以 Post 的方式提交，也可以在请求的地址后面拼接 <code>xxx?SessionID=123456...</code>。</p>
+<p>第二种方案，Token 机制。Token 机制多用于 App 客户端和服务器交互的模式，也可以用于 Web 端做用户状态管理。</p>
+<p>Token 的意思是“令牌”，是服务端生成的一串字符串，作为客户端进行请求的一个标识。Token 机制和 Cookie 和 Session 的使用机制比较类似。</p>
+<p>当用户第一次登录后，服务器根据提交的用户信息生成一个 Token，响应时将 Token 返回给客户端，以后客户端只需带上这个 Token 前来请求数据即可，无需再次登录验证。</p>
+<h2 id="2-分布式-session"><a class="markdownIt-Anchor" href="#2-分布式-session"></a> 2. 分布式 Session</h2>
+<p>在分布式场景下，一个用户的 Session 如果只存储在一个服务器上，那么当负载均衡器把用户的下一个请求转发到另一个服务器上，该服务器没有用户的 Session，就可能导致用户需要重新进行登录等操作。</p>
+<p>分布式 Session 的几种实现策略：</p>
+<ol>
+<li>粘性 session</li>
+<li>应用服务器间的 session 复制共享</li>
+<li>基于缓存的 session 共享 ✅</li>
+</ol>
+<blockquote>
+<p>推荐：基于缓存的 session 共享</p>
+</blockquote>
+<h3 id="21-粘性-session"><a class="markdownIt-Anchor" href="#21-粘性-session"></a> 2.1. 粘性 Session</h3>
+<blockquote>
+<p>粘性 Session（Sticky Sessions）<strong>需要配置负载均衡器，使得一个用户的所有请求都路由到一个服务器节点上</strong>，这样就可以把用户的 Session 存放在该服务器节点中。</p>
+<p>缺点：<strong>当服务器节点宕机时，将丢失该服务器节点上的所有 Session</strong>。</p>
+</blockquote>
+<div align="center">
+<img src="http://dunwu.test.upcdn.net/cs/design/architecture/MultiNode-StickySessions.jpg!zp" />
+</div>
+<h3 id="22-session-复制共享"><a class="markdownIt-Anchor" href="#22-session-复制共享"></a> 2.2. Session 复制共享</h3>
+<blockquote>
+<p>Session 复制共享（Session Replication）<strong>在服务器节点之间进行 Session 同步操作</strong>，这样的话用户可以访问任何一个服务器节点。</p>
+<p>缺点：<strong>占用过多内存</strong>；<strong>同步过程占用网络带宽以及服务器处理器时间</strong>。</p>
+</blockquote>
+<div align="center">
+<img src="http://dunwu.test.upcdn.net/cs/design/architecture/MultiNode-SessionReplication.jpg!zp" />
+</div>
+<h3 id="23-基于缓存的-session-共享"><a class="markdownIt-Anchor" href="#23-基于缓存的-session-共享"></a> 2.3. 基于缓存的 session 共享</h3>
+<blockquote>
+<p><strong>使用一个单独的存储服务器存储 Session 数据</strong>，可以存在 MySQL 数据库上，也可以存在 Redis 或者 Memcached 这种内存型数据库。</p>
+<p>缺点：需要去实现存取 Session 的代码。</p>
+</blockquote>
+<div align="center">
+<img src="http://dunwu.test.upcdn.net/cs/design/architecture/MultiNode-SpringSession.jpg!zp" />
+</div>
+<h2 id="3-具体实现"><a class="markdownIt-Anchor" href="#3-具体实现"></a> 3. 具体实现</h2>
+<h3 id="31-jwt-token"><a class="markdownIt-Anchor" href="#31-jwt-token"></a> 3.1. JWT Token</h3>
+<p>使用 JWT Token 储存用户身份，然后再从数据库或者 cache 中获取其他的信息。这样无论请求分配到哪个服务器都无所谓。</p>
+<h3 id="32-tomcat-redis"><a class="markdownIt-Anchor" href="#32-tomcat-redis"></a> 3.2. tomcat + redis</h3>
+<p>这个其实还挺方便的，就是使用 session 的代码，跟以前一样，还是基于 tomcat 原生的 session 支持即可，然后就是用一个叫做 <code>Tomcat RedisSessionManager</code> 的东西，让所有我们部署的 tomcat 都将 session 数据存储到 redis 即可。</p>
+<p>在 tomcat 的配置文件中配置：</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">Valve</span> <span class="attr">className</span>=<span class="string">"com.orangefunction.tomcat.redissessions.RedisSessionHandlerValve"</span> /&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">Manager</span> <span class="attr">className</span>=<span class="string">"com.orangefunction.tomcat.redissessions.RedisSessionManager"</span></span></span><br><span class="line"><span class="tag">         <span class="attr">host</span>=<span class="string">"&#123;redis.host&#125;"</span></span></span><br><span class="line"><span class="tag">         <span class="attr">port</span>=<span class="string">"&#123;redis.port&#125;"</span></span></span><br><span class="line"><span class="tag">         <span class="attr">database</span>=<span class="string">"&#123;redis.dbnum&#125;"</span></span></span><br><span class="line"><span class="tag">         <span class="attr">maxInactiveInterval</span>=<span class="string">"60"</span>/&gt;</span></span><br></pre></td></tr></table></figure>
+<p>然后指定 redis 的 host 和 port 就 ok 了。</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">Valve</span> <span class="attr">className</span>=<span class="string">"com.orangefunction.tomcat.redissessions.RedisSessionHandlerValve"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">Manager</span> <span class="attr">className</span>=<span class="string">"com.orangefunction.tomcat.redissessions.RedisSessionManager"</span></span></span><br><span class="line"><span class="tag">	 <span class="attr">sentinelMaster</span>=<span class="string">"mymaster"</span></span></span><br><span class="line"><span class="tag">	 <span class="attr">sentinels</span>=<span class="string">"&lt;sentinel1-ip&gt;:26379,&lt;sentinel2-ip&gt;:26379,&lt;sentinel3-ip&gt;:26379"</span></span></span><br><span class="line"><span class="tag">	 <span class="attr">maxInactiveInterval</span>=<span class="string">"60"</span>/&gt;</span></span><br></pre></td></tr></table></figure>
+<p>还可以用上面这种方式基于 redis 哨兵支持的 redis 高可用集群来保存 session 数据，都是 ok 的。</p>
+<h3 id="33-spring-session-redis"><a class="markdownIt-Anchor" href="#33-spring-session-redis"></a> 3.3. spring session + redis</h3>
+<p>上面那种 tomcat + redis 的方式好用，但是会<strong>严重依赖于 web 容器</strong>，不好将代码移植到其他 web 容器上去，尤其是你要是换了技术栈咋整？比如换成了 spring cloud 或者是 spring boot 之类的呢？</p>
+<p>所以现在比较好的还是基于 Java 一站式解决方案，也就是 spring。人家 spring 基本上承包了大部分我们需要使用的框架，spirng cloud 做微服务，spring boot 做脚手架，所以用 <a href="https://github.com/spring-projects/spring-session" target="_blank" rel="noopener">sping session</a> 是一个很好的选择。</p>
+<p>在 pom.xml 中配置：</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.springframework.session<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>spring-session-data-redis<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">version</span>&gt;</span>1.2.1.RELEASE<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>redis.clients<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>jedis<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">version</span>&gt;</span>2.8.1<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>在 spring 配置文件中配置：</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">bean</span> <span class="attr">id</span>=<span class="string">"redisHttpSessionConfiguration"</span></span></span><br><span class="line"><span class="tag">     <span class="attr">class</span>=<span class="string">"org.springframework.session.data.redis.config.annotation.web.http.RedisHttpSessionConfiguration"</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"maxInactiveIntervalInSeconds"</span> <span class="attr">value</span>=<span class="string">"600"</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">bean</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">bean</span> <span class="attr">id</span>=<span class="string">"jedisPoolConfig"</span> <span class="attr">class</span>=<span class="string">"redis.clients.jedis.JedisPoolConfig"</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"maxTotal"</span> <span class="attr">value</span>=<span class="string">"100"</span> /&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"maxIdle"</span> <span class="attr">value</span>=<span class="string">"10"</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">bean</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">bean</span> <span class="attr">id</span>=<span class="string">"jedisConnectionFactory"</span></span></span><br><span class="line"><span class="tag">      <span class="attr">class</span>=<span class="string">"org.springframework.data.redis.connection.jedis.JedisConnectionFactory"</span> <span class="attr">destroy-method</span>=<span class="string">"destroy"</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"hostName"</span> <span class="attr">value</span>=<span class="string">"$&#123;redis_hostname&#125;"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"port"</span> <span class="attr">value</span>=<span class="string">"$&#123;redis_port&#125;"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"password"</span> <span class="attr">value</span>=<span class="string">"$&#123;redis_pwd&#125;"</span> /&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"timeout"</span> <span class="attr">value</span>=<span class="string">"3000"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"usePool"</span> <span class="attr">value</span>=<span class="string">"true"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span> <span class="attr">name</span>=<span class="string">"poolConfig"</span> <span class="attr">ref</span>=<span class="string">"jedisPoolConfig"</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">bean</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>在 web.xml 中配置：</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">filter</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">filter-name</span>&gt;</span>springSessionRepositoryFilter<span class="tag">&lt;/<span class="name">filter-name</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">filter-class</span>&gt;</span>org.springframework.web.filter.DelegatingFilterProxy<span class="tag">&lt;/<span class="name">filter-class</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">filter</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">filter-mapping</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">filter-name</span>&gt;</span>springSessionRepositoryFilter<span class="tag">&lt;/<span class="name">filter-name</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">url-pattern</span>&gt;</span>/*<span class="tag">&lt;/<span class="name">url-pattern</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">filter-mapping</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>示例代码：</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@RestController</span></span><br><span class="line"><span class="meta">@RequestMapping</span>(<span class="string">"/test"</span>)</span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TestController</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@RequestMapping</span>(<span class="string">"/putIntoSession"</span>)</span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">putIntoSession</span><span class="params">(HttpServletRequest request, String username)</span> </span>&#123;</span><br><span class="line">        request.getSession().setAttribute(<span class="string">"name"</span>,  <span class="string">"leo"</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="string">"ok"</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@RequestMapping</span>(<span class="string">"/getFromSession"</span>)</span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">getFromSession</span><span class="params">(HttpServletRequest request, Model model)</span></span>&#123;</span><br><span class="line">        String name = request.getSession().getAttribute(<span class="string">"name"</span>);</span><br><span class="line">        <span class="keyword">return</span> name;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面的代码就是 ok 的，给 sping session 配置基于 redis 来存储 session 数据，然后配置了一个 spring session 的过滤器，这样的话，session 相关操作都会交给 spring session 来管了。接着在代码中，就用原生的 session 操作，就是直接基于 spring sesion 从 redis 中获取数据了。</p>
+<p>实现分布式的会话有很多种方式，我说的只不过是比较常见的几种方式，tomcat + redis 早期比较常用，但是会重耦合到 tomcat 中；近些年，通过 spring session 来实现。</p>
+<h2 id="4-参考资料"><a class="markdownIt-Anchor" href="#4-参考资料"></a> 4. 参考资料</h2>
+<ul>
+<li><a href="https://github.com/L316476844/distributed-session" target="_blank" rel="noopener">集群/分布式环境 Session 的几种策略</a></li>
+<li><a href="https://juejin.im/post/5cd9037ee51d456e5c5babca" target="_blank" rel="noopener">你真的了解 Cookie 和 Session 吗</a></li>
+<li><a href="https://juejin.im/post/5aede266f265da0ba266e0ef" target="_blank" rel="noopener">聊一聊 session 和 cookie</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>Zhang Peng
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://dunwu.github.io/blog/theory/distributed-session/" title="分布式会话基本原理">https://dunwu.github.io/blog/theory/distributed-session/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/blog/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag"># 分布式</a>
+              <a href="/blog/tags/session/" rel="tag"># session</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-next post-nav-item">
+                <a href="/blog/theory/distributed-lock/" rel="next" title="分布式锁基本原理">
+                  <i class="fa fa-chevron-left"></i> 分布式锁基本原理
+                </a>
+            </div>
+
+            <span class="post-nav-divider"></span>
+
+            <div class="post-nav-prev post-nav-item">
+                <a href="/blog/theory/distributed-transaction/" rel="prev" title="分布式事务基本原理">
+                  分布式事务基本原理 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+  </div>
+
+
+          </div>
+          
+    
+  <div class="comments" id="comments">
+    <div id="disqus_thread">
+      <noscript>Please enable JavaScript to view the comments powered by Disqus.</noscript>
+    </div>
+  </div>
+  
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#分布式会话基本原理"><span class="nav-text"> 分布式会话基本原理</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-简介"><span class="nav-text"> 1. 简介</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#11-什么是-cookie"><span class="nav-text"> 1.1. 什么是 Cookie</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#12-什么是-session"><span class="nav-text"> 1.2. 什么是 Session</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#13-cookie-和-session-的区别"><span class="nav-text"> 1.3. Cookie 和 Session 的区别</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#14-为什么需要-cookie-和-session他们有什么关联"><span class="nav-text"> 1.4. 为什么需要 Cookie 和 Session，他们有什么关联？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#15-如果浏览器禁用-cookie-怎么办"><span class="nav-text"> 1.5. 如果浏览器禁用 Cookie 怎么办</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-分布式-session"><span class="nav-text"> 2. 分布式 Session</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#21-粘性-session"><span class="nav-text"> 2.1. 粘性 Session</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#22-session-复制共享"><span class="nav-text"> 2.2. Session 复制共享</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#23-基于缓存的-session-共享"><span class="nav-text"> 2.3. 基于缓存的 session 共享</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-具体实现"><span class="nav-text"> 3. 具体实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#31-jwt-token"><span class="nav-text"> 3.1. JWT Token</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#32-tomcat-redis"><span class="nav-text"> 3.2. tomcat + redis</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#33-spring-session-redis"><span class="nav-text"> 3.3. spring session + redis</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-参考资料"><span class="nav-text"> 4. 参考资料</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <img class="site-author-image" itemprop="image" alt="Zhang Peng"
+    src="/blog/images/avatar.gif">
+  <p class="site-author-name" itemprop="name">Zhang Peng</p>
+  <div class="site-description" itemprop="description">Dunwu's Blog</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/blog/archives/">
+        
+          <span class="site-state-item-count">44</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/blog/categories/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/blog/tags/">
+          
+        <span class="site-state-item-count">38</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/dunwu" title="GitHub &amp;rarr; https:&#x2F;&#x2F;github.com&#x2F;dunwu" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:forbreak@163.com" title="E-Mail &amp;rarr; mailto:forbreak@163.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+      </span>
+  </div>
+  <div class="cc-license motion-element" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="/blog/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-paper-plane"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Zhang Peng</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-area-chart"></i>
+    </span>
+    <span title="站点总字数">278k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="站点阅读时长">4:12</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+  </div>
+
+  
+  
+  <script color='0,0,255' opacity='0.5' zIndex='-1' count='99' src="//cdn.jsdelivr.net/gh/theme-next/theme-next-canvas-nest@1/canvas-nest.min.js"></script>
+  <script src="/blog/lib/anime.min.js"></script>
+  <script src="/blog/lib/velocity/velocity.min.js"></script>
+  <script src="/blog/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/blog/js/utils.js"></script>
+
+<script src="/blog/js/motion.js"></script>
+
+
+<script src="/blog/js/schemes/pisces.js"></script>
+
+
+<script src="/blog/js/next-boot.js"></script>
+
+<script src="/blog/js/bookmark.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/blog/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<script>
+  function loadCount() {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://blog-ajay4qmfci.disqus.com/count.js';
+    s.id = 'dsq-count-scr';
+    (d.head || d.body).appendChild(s);
+  }
+  // defer loading until the whole page loading is completed
+  window.addEventListener('load', loadCount, false);
+</script>
+<script>
+  function loadComments() {
+    if (window.DISQUS) {
+      DISQUS.reset({
+        reload: true,
+        config: {page: {
+            url: "https://dunwu.github.io/blog/theory/distributed-session/",
+            identifier: "theory/distributed-session/",
+            title: "分布式会话基本原理"
+          }
+        }
+      });
+    } else {
+      var d = document, s = d.createElement('script');
+      s.src = 'https://blog-ajay4qmfci.disqus.com/embed.js';
+      s.setAttribute('data-timestamp', '' + +new Date());
+      (d.head || d.body).appendChild(s);
+    }
+  }
+    (function() {
+      var offsetTop = document.getElementById('comments').offsetTop - window.innerHeight;
+      if (offsetTop <= 0) {
+        // load directly when there's no a scrollbar
+        window.addEventListener('load', loadComments, false);
+      } else {
+        var disqus_scroll = () => {
+          // offsetTop may changes because of manually resizing browser window or lazy loading images.
+          var offsetTop = document.getElementById('comments').offsetTop - window.innerHeight;
+          var scrollTop = window.scrollY;
+
+          // pre-load comments a bit? (margin or anything else)
+          if (offsetTop - scrollTop < 60) {
+            window.removeEventListener('scroll', disqus_scroll);
+            loadComments();
+          }
+        };
+        window.addEventListener('scroll', disqus_scroll);
+      }
+    })();
+  
+</script>
+
+</body>
+</html>
